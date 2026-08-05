@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Stack — Drag the Data Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0F1130;
+    --bg-glow: #171a45;
+    --panel: #1B1E45;
+    --panel-2: #232759;
+    --line: #33366e;
+    --cyan: #5EEAD4;
+    --cyan-dim: #2E7D74;
+    --gold: #FBC94A;
+    --coral: #FF6B6B;
+    --text: #F1F3FF;
+    --muted: #8A8FC0;
+    --success: #6EE7A8;
+    --radius: 18px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:
+      radial-gradient(circle at 15% 0%, var(--bg-glow), transparent 55%),
+      radial-gradient(circle at 85% 100%, #1a1140 0%, transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    overflow-x:hidden;
+  }
+  .stage{
+    min-height:100vh;
+    display:flex; flex-direction:column;
+    align-items:center;
+    padding: 20px 16px 40px;
+  }
+  /* ---------- Top bar ---------- */
+  .topbar{
+    width:100%; max-width:980px;
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:38px; height:38px; border-radius:10px;
+    background: linear-gradient(145deg, var(--cyan), #3FBFAE);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono', monospace; font-weight:700; color:#0F1130;
+    font-size:14px; box-shadow: 0 0 22px rgba(94,234,212,0.45);
+  }
+  .brand-text h1{
+    font-family:'Fredoka', sans-serif; font-size:20px; margin:0; letter-spacing:0.3px;
+  }
+  .brand-text p{ margin:0; font-size:11.5px; color:var(--muted); letter-spacing:0.4px; }
+  .stats{ display:flex; gap:10px; }
+  .stat-chip{
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px 14px;
+    text-align:center;
+    min-width:76px;
+  }
+  .stat-chip .label{ font-size:9.5px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+  .stat-chip .value{ font-family:'JetBrains Mono', monospace; font-size:16px; font-weight:700; color:var(--cyan); margin-top:2px; }
+  .stat-chip.danger .value{ color: var(--coral); animation: blink 1s ease infinite; }
+  @keyframes blink{ 0%,100%{ opacity:1; } 50%{ opacity:.45; } }
+
+  /* ---------- Unit ladder ---------- */
+  .ladder{
+    width:100%; max-width:980px;
+    display:flex; align-items:center;
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    overflow-x:auto;
+  }
+  .rung{
+    display:flex; align-items:center; flex-direction:column; gap:6px;
+    flex: 0 0 auto;
+    width:72px;
+    position:relative;
+  }
+  .rung .dot{
+    width:34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; font-weight:700;
+    background: var(--panel-2); color: var(--muted);
+    border: 2px solid var(--line);
+    transition: all .35s ease;
+  }
+  .rung .name{ font-size:10px; color:var(--muted); letter-spacing:0.3px; transition: color .35s ease; }
+  .rung.done .dot{ background: var(--success); border-color:var(--success); color:#0F1130; }
+  .rung.done .name{ color: var(--success); }
+  .rung.current-small .dot{ background: var(--cyan); border-color: var(--cyan); color:#0F1130; box-shadow:0 0 16px rgba(94,234,212,.55);}
+  .rung.current-small .name{ color: var(--cyan); }
+  .rung.current-big .dot{ background: var(--gold); border-color: var(--gold); color:#0F1130; box-shadow:0 0 16px rgba(251,201,74,.55);}
+  .rung.current-big .name{ color: var(--gold); }
+  .rung-line{
+    position:absolute; top:17px; left:calc(50% + 20px); width: calc(100% - 20px); height:2px;
+    background: var(--line); z-index:-1;
+  }
+  .rung:last-child .rung-line{ display:none; }
+
+  /* ---------- Fact card ---------- */
+  .fact-card{
+    width:100%; max-width:980px;
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-left: 4px solid var(--gold);
+    border-radius: 14px;
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    display:flex; align-items:baseline; gap:10px;
+    flex-wrap:wrap;
+  }
+  .fact-label{
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:12.5px;
+    color: var(--gold); white-space:nowrap;
+  }
+  .fact-text{ font-size:12.5px; color: var(--muted); line-height:1.5; }
+
+  /* ---------- Game area ---------- */
+  .game{
+    width:100%; max-width:980px;
+    display:flex; gap:20px;
+    align-items:stretch;
+  }
+  .panel{
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+  .tray{
+    flex: 1.15;
+    display:flex; flex-direction:column;
+  }
+  .tray h2, .silo-wrap h2{
+    font-family:'Fredoka', sans-serif; font-size:14px; margin:0 0 4px;
+    color:var(--muted); font-weight:600; letter-spacing:0.3px;
+  }
+  .tray .sub, .silo-wrap .sub{ font-size:12px; color:var(--muted); margin-bottom:14px; }
+  .tray-grid{
+    flex:1;
+    display:flex; flex-wrap:wrap; align-content:flex-start; gap:12px;
+    min-height: 220px;
+  }
+  .block{
+    touch-action:none;
+    user-select:none;
+    cursor:grab;
+    font-family:'JetBrains Mono', monospace;
+    font-weight:700; font-size:14px;
+    color:#0F1130;
+    background: linear-gradient(155deg, var(--cyan), #38B8A6);
+    border-radius: 12px;
+    padding: 14px 10px;
+    width: 78px; height:56px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.18), 0 6px 14px rgba(0,0,0,0.25);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .block:active{ cursor:grabbing; }
+  .block.dragging{
+    box-shadow: 0 12px 26px rgba(0,0,0,0.45);
+    transform: scale(1.08) rotate(-2deg);
+    pointer-events:none;
+  }
+  .block.returning{ transition: none; }
+
+  .silo-wrap{
+    flex:0.85;
+    display:flex; flex-direction:column;
+  }
+  .silo-target-label{
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:13px;
+    color: var(--gold); margin-bottom:10px;
+  }
+  .silo-area{
+    flex:1;
+    display:flex; align-items:flex-end; justify-content:center;
+    position:relative;
+  }
+  .silo{
+    width: 128px; height: 220px;
+    border-radius: 16px;
+    border: 3px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    position:relative;
+    overflow:hidden;
+    box-shadow: inset 0 0 24px rgba(0,0,0,0.4);
+    transition: border-color .2s ease;
+  }
+  .silo.hover{ border-color: var(--cyan); box-shadow: 0 0 22px rgba(94,234,212,.4), inset 0 0 24px rgba(0,0,0,0.4); }
+  .silo.shake{ animation: shake .45s ease; }
+  @keyframes shake{
+    0%,100%{ transform: translateX(0); }
+    20%{ transform: translateX(-8px); }
+    40%{ transform: translateX(7px); }
+    60%{ transform: translateX(-5px); }
+    80%{ transform: translateX(4px); }
+  }
+  .silo-fill{
+    position:absolute; left:0; right:0; bottom:0;
+    background: linear-gradient(180deg, var(--cyan), var(--cyan-dim));
+    height:0%;
+    transition: height .45s cubic-bezier(.34,1.56,.64,1);
+  }
+  .silo-fill::before{
+    content:''; position:absolute; top:-6px; left:0; right:0; height:12px;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.55), transparent 70%);
+    opacity:.6;
+  }
+  .silo-fill.complete{ background: linear-gradient(180deg, var(--success), #2f9e6b); }
+  .silo-fill.overflow{ background: linear-gradient(180deg, var(--coral), #a13636); }
+  .silo-readout{
+    margin-top:14px; text-align:center;
+    font-family:'JetBrains Mono', monospace; font-size:13px;
+    color: var(--muted);
+  }
+  .silo-readout b{ color: var(--text); }
+
+  /* ---------- Message banner ---------- */
+  .banner{
+    width:100%; max-width:980px;
+    margin-top:16px;
+    min-height: 44px;
+    display:flex; align-items:center; justify-content:center;
+    text-align:center;
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:14px;
+    border-radius: 12px;
+    padding: 0 16px;
+    opacity:0; transform: translateY(-6px);
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  .banner.show{ opacity:1; transform: translateY(0); }
+  .banner.success{ background: rgba(110,231,168,0.12); color: var(--success); border:1px solid rgba(110,231,168,0.35); min-height:44px; padding:10px 16px;}
+  .banner.warning{ background: rgba(255,107,107,0.12); color: var(--coral); border:1px solid rgba(255,107,107,0.35); min-height:44px; padding:10px 16px;}
+
+  /* ---------- Footer ---------- */
+  .footer{
+    width:100%; max-width:980px;
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:18px;
+    flex-wrap:wrap; gap:10px;
+  }
+  .hint{ font-size:12px; color:var(--muted); }
+  .reset-btn{
+    background: var(--panel-2); color: var(--text);
+    border:1px solid var(--line); border-radius:10px;
+    padding: 9px 16px; font-family:'Inter',sans-serif; font-weight:600; font-size:12.5px;
+    cursor:pointer;
+  }
+  .reset-btn:hover{ border-color: var(--cyan); color: var(--cyan); }
+
+  /* ---------- Victory overlay ---------- */
+  .overlay{
+    position:fixed; inset:0; background: rgba(9,10,26,0.86);
+    display:none; align-items:center; justify-content:center; z-index:2000;
+    backdrop-filter: blur(4px);
+  }
+  .overlay.show{ display:flex; }
+  .victory-card{
+    background: var(--panel); border:1px solid var(--line); border-radius:22px;
+    padding: 40px 36px; text-align:center; max-width:380px;
+  }
+  .victory-card .trophy{ font-size:44px; }
+  .victory-card h2{ font-family:'Fredoka', sans-serif; font-size:24px; margin:10px 0 4px; }
+  .victory-card p{ color:var(--muted); font-size:13.5px; margin: 6px 0 22px; line-height:1.5; }
+  .victory-card .time{ font-family:'JetBrains Mono', monospace; color:var(--gold); font-size:20px; font-weight:700; }
+  .play-again{
+    margin-top:20px;
+    background: linear-gradient(145deg, var(--cyan), #3FBFAE);
+    color:#0F1130; border:none; border-radius:12px;
+    padding: 12px 22px; font-family:'Fredoka',sans-serif; font-weight:600; font-size:14px;
+    cursor:pointer;
+  }
+
+  @media (max-width: 720px){
+    .game{ flex-direction:column; }
+    .silo{ width:110px; height:180px; }
+    .stats{ gap:6px; }
+    .stat-chip{ min-width:64px; padding:6px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">01</div>
+      <div class="brand-text">
+        <h1>Memory Stack</h1>
+        <p>DRAG THE SMALLER UNIT INTO THE BIGGER ONE</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat-chip">
+        <div class="label">Level</div>
+        <div class="value" id="levelValue">1/6</div>
+      </div>
+      <div class="stat-chip" id="levelTimerChip">
+        <div class="label">Time left</div>
+        <div class="value" id="levelTimerValue">00:40</div>
+      </div>
+      <div class="stat-chip">
+        <div class="label">Total</div>
+        <div class="value" id="timerValue">00:00</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ladder" id="ladder"></div>
+
+  <div class="fact-card">
+    <div class="fact-label">Did you know?</div>
+    <div class="fact-text" id="factText"></div>
+  </div>
+
+  <div class="game">
+    <div class="panel tray">
+      <h2 id="trayTitle">Byte blocks</h2>
+      <div class="sub" id="traySub">Drag these into the silo until it reads exactly the target. Too little? Nothing happens — just keep going.</div>
+      <div class="tray-grid" id="trayGrid"></div>
+    </div>
+
+    <div class="panel silo-wrap">
+      <div class="silo-target-label" id="siloLabel">Fill 1 KB</div>
+      <div class="sub">Overfill it and it resets — aim for the exact amount.</div>
+      <div class="silo-area">
+        <div class="silo" id="silo">
+          <div class="silo-fill" id="siloFill"></div>
+        </div>
+      </div>
+      <div class="silo-readout" id="siloReadout"><b>0</b> / 1024 B</div>
+    </div>
+  </div>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="footer">
+    <div class="hint">Bit → Byte → KB → MB → GB → TB → PB → EB → ZB → YB → BB → GeB. Fill each silo exactly to climb the ladder.</div>
+    <button class="reset-btn" id="resetBtn">Reset level</button>
+  </div>
+
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="victory-card">
+    <div class="trophy">🏆</div>
+    <h2>Geopbyte unlocked!</h2>
+    <p>You climbed the entire memory ladder — from a single bit all the way up to a geopbyte — without a single wasted byte.</p>
+    <div class="time" id="finalTime">00:00</div>
+    <button class="play-again" id="playAgainBtn">Play again</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const UNITS = ['Bit','Nibble','Byte','Kilobyte','Megabyte','Gigabyte','Terabyte','Petabyte','Exabyte','Zettabyte','Yottabyte','Brontobyte','Geopbyte'];
+  const ABBR  = ['b','nib','B','KB','MB','GB','TB','PB','EB','ZB','YB','BB','GeB'];
+  // how many of UNITS[i] make one UNITS[i+1]
+  const TARGETS = [4, 2, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024];
+
+  const FACTS = {
+    'Bit': "A bit is the smallest piece of data a computer understands — just a single 0 or 1.",
+    'Nibble': "A nibble is 4 bits — half a byte. It's exactly enough to represent one hexadecimal digit, 0 to F.",
+    'Byte': "A byte is 8 bits (2 nibbles) — usually enough to store one character, like the letter A.",
+    'Kilobyte': "A kilobyte is 1,024 bytes — roughly enough for half a page of plain text.",
+    'Megabyte': "A megabyte is 1,024 kilobytes — about one minute of MP3 music.",
+    'Gigabyte': "A gigabyte is 1,024 megabytes — enough space for around 200 photos from a phone camera.",
+    'Terabyte': "A terabyte is 1,024 gigabytes — that could hold roughly 250,000 photos.",
+    'Petabyte': "A petabyte is 1,024 terabytes. Big data centers can process several petabytes in a single day.",
+    'Exabyte': "An exabyte is 1,024 petabytes. Experts estimate the entire internet holds only a few exabytes of data.",
+    'Zettabyte': "A zettabyte is 1,024 exabytes — a size now used to measure all the data on Earth combined.",
+    'Yottabyte': "A yottabyte is 1,024 zettabytes — so enormous it's rarely used outside of theory, at least for now.",
+    'Brontobyte': "A brontobyte is 1,024 yottabytes. It isn't an official unit yet — scientists use it to imagine future storage.",
+    'Geopbyte': "A geopbyte is 1,024 brontobytes — one of the largest data units ever proposed, mostly just for fun and scale."
+  };
+
+  const ladderEl   = document.getElementById('ladder');
+  const trayGrid   = document.getElementById('trayGrid');
+  const trayTitle  = document.getElementById('trayTitle');
+  const traySub    = document.getElementById('traySub');
+  const siloEl     = document.getElementById('silo');
+  const siloFillEl = document.getElementById('siloFill');
+  const siloLabel  = document.getElementById('siloLabel');
+  const siloReadout= document.getElementById('siloReadout');
+  const bannerEl   = document.getElementById('banner');
+  const factText   = document.getElementById('factText');
+  const levelValue = document.getElementById('levelValue');
+  const timerValue = document.getElementById('timerValue');
+  const levelTimerValue = document.getElementById('levelTimerValue');
+  const levelTimerChip = document.getElementById('levelTimerChip');
+  const resetBtn   = document.getElementById('resetBtn');
+  const overlay    = document.getElementById('overlay');
+  const finalTime  = document.getElementById('finalTime');
+  const playAgainBtn = document.getElementById('playAgainBtn');
+
+  let level = 0;           // index into UNITS, transition level -> level+1
+  let target = 8;
+  let fill = 0;
+  let locked = false;      // true while a success/overflow animation plays
+  let startTime = Date.now();
+  let timerInterval = null;
+  let levelTimerInterval = null;
+  let levelTimeLeft = 0;
+  let dragEl = null, offsetX = 0, offsetY = 0;
+
+  function fmtTime(ms){
+    const s = Math.floor(ms/1000);
+    const mm = String(Math.floor(s/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    return mm+':'+ss;
+  }
+
+  function levelTimeFor(lvl){
+    // starts at 40s, loses 2s per level, floors at 18s
+    return Math.max(18, 40 - lvl*2);
+  }
+
+  function startLevelTimer(seconds){
+    clearInterval(levelTimerInterval);
+    levelTimeLeft = seconds;
+    updateLevelTimerDisplay();
+    levelTimerInterval = setInterval(()=>{
+      levelTimeLeft--;
+      updateLevelTimerDisplay();
+      if(levelTimeLeft <= 0){
+        clearInterval(levelTimerInterval);
+        onTimeUp();
+      }
+    }, 1000);
+  }
+
+  function updateLevelTimerDisplay(){
+    levelTimerValue.textContent = fmtTime(Math.max(0,levelTimeLeft)*1000);
+    levelTimerChip.classList.toggle('danger', levelTimeLeft <= 10);
+  }
+
+  function onTimeUp(){
+    if(locked) return;
+    locked = true;
+    siloEl.classList.add('shake');
+    showBanner("Time's up! Resetting this silo.", 'warning');
+    setTimeout(()=>{
+      siloEl.classList.remove('shake');
+      hideBanner();
+      setupLevel(level);
+    }, 1300);
+  }
+
+  function startTimer(){
+    startTime = Date.now();
+    if(timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(()=>{
+      timerValue.textContent = fmtTime(Date.now()-startTime);
+    }, 500);
+  }
+
+  function buildLadder(){
+    ladderEl.innerHTML = '';
+    UNITS.forEach((u,i)=>{
+      const rung = document.createElement('div');
+      rung.className = 'rung';
+      rung.id = 'rung-'+i;
+      rung.innerHTML = `<div class="dot">${ABBR[i]}</div><div class="name">${u}</div><div class="rung-line"></div>`;
+      ladderEl.appendChild(rung);
+    });
+  }
+
+  function updateLadder(){
+    UNITS.forEach((u,i)=>{
+      const rung = document.getElementById('rung-'+i);
+      rung.classList.remove('done','current-small','current-big');
+      if(i < level) rung.classList.add('done');
+      else if(i === level) rung.classList.add('current-small');
+      else if(i === level+1) rung.classList.add('current-big');
+    });
+  }
+
+  // Split `target` into `parts` clean (roughly power-of-two) chunks that sum exactly to target.
+  function splitTarget(t, parts){
+    let vals = [t];
+    while(vals.length < parts){
+      let idx = vals.indexOf(Math.max(...vals));
+      let v = vals[idx];
+      if(v < 2){ break; }
+      let a = Math.floor(v/2);
+      let b = v - a;
+      vals.splice(idx, 1, a, b);
+    }
+    return vals;
+  }
+
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+  function generateBlocks(){
+    const numParts = Math.min(3 + level, 6);
+    const parts = splitTarget(target, numParts);
+    const decoyCount = Math.min(1 + level, 5);
+    const decoys = [];
+    const maxDecoy = Math.max(1, Math.floor(target/4));
+    for(let i=0;i<decoyCount;i++){
+      let pow = randInt(0, Math.max(0, Math.floor(Math.log2(maxDecoy))));
+      decoys.push(Math.pow(2,pow));
+    }
+    const all = parts.concat(decoys);
+    // shuffle
+    for(let i=all.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [all[i],all[j]] = [all[j],all[i]];
+    }
+    return all;
+  }
+
+  function renderTray(){
+    trayGrid.innerHTML = '';
+    const values = generateBlocks();
+    values.forEach(v=>{
+      const b = document.createElement('div');
+      b.className = 'block';
+      b.dataset.value = v;
+      b.textContent = v + ABBR[level];
+      b.addEventListener('pointerdown', onPointerDown);
+      trayGrid.appendChild(b);
+    });
+  }
+
+  function setupLevel(newLevel){
+    level = newLevel;
+    target = TARGETS[level];
+    fill = 0;
+    locked = false;
+    trayTitle.textContent = UNITS[level] + ' blocks';
+    siloLabel.textContent = 'Fill 1 ' + UNITS[level+1];
+    factText.textContent = FACTS[UNITS[level+1]] || '';
+    updateSiloVisual();
+    renderTray();
+    updateLadder();
+    levelValue.textContent = (level+1) + '/' + (UNITS.length-1);
+    startLevelTimer(levelTimeFor(level));
+  }
+
+  function updateSiloVisual(){
+    const pct = Math.max(0, Math.min(100, (fill/target)*100));
+    siloFillEl.style.height = pct + '%';
+    siloFillEl.classList.remove('complete','overflow');
+    siloReadout.innerHTML = '<b>'+fill+'</b> / ' + target + ' ' + ABBR[level];
+  }
+
+  function showBanner(text, cls){
+    bannerEl.textContent = text;
+    bannerEl.className = 'banner show ' + cls;
+  }
+  function hideBanner(){
+    bannerEl.className = 'banner';
+  }
+
+  function handleDrop(blockEl){
+    if(locked) return;
+    const value = Number(blockEl.dataset.value);
+    blockEl.remove();
+    fill += value;
+    updateSiloVisual();
+
+    if(fill === target){
+      locked = true;
+      clearInterval(levelTimerInterval);
+      siloFillEl.classList.add('complete');
+      showBanner('Nice! Exactly 1 ' + UNITS[level+1] + ' filled.', 'success');
+      setTimeout(()=>{
+        hideBanner();
+        if(level+2 >= UNITS.length){
+          gameComplete();
+        }else{
+          setupLevel(level+1);
+        }
+      }, 1300);
+    } else if(fill > target){
+      locked = true;
+      clearInterval(levelTimerInterval);
+      siloFillEl.classList.add('overflow');
+      siloEl.classList.add('shake');
+      showBanner('Too much! That overflows the ' + UNITS[level+1] + ' — resetting this silo.', 'warning');
+      setTimeout(()=>{
+        siloEl.classList.remove('shake');
+        hideBanner();
+        setupLevel(level);
+      }, 1300);
+    }
+    // if fill < target: nothing else happens, timer just keeps running
+  }
+
+  function gameComplete(){
+    clearInterval(timerInterval);
+    clearInterval(levelTimerInterval);
+    finalTime.textContent = fmtTime(Date.now()-startTime);
+    overlay.classList.add('show');
+  }
+
+  function resetGame(){
+    overlay.classList.remove('show');
+    setupLevel(0);
+    startTimer();
+  }
+
+  // ---------- Pointer-based drag & drop (mouse + touch) ----------
+  // Listeners for move/up are bound to window (not the dragged element) so the
+  // drag keeps working even if the element's position in the DOM changes mid-drag.
+  function onPointerDown(e){
+    if(locked) return;
+    const el = e.currentTarget;
+    if(e.button !== undefined && e.button !== 0) return; // left click only for mouse
+    e.preventDefault();
+    const rect = el.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    el.style.position = 'fixed';
+    el.style.left = rect.left + 'px';
+    el.style.top = rect.top + 'px';
+    el.style.width = rect.width + 'px';
+    el.style.zIndex = 1000;
+    el.classList.add('dragging');
+    dragEl = el;
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  }
+
+  function onPointerMove(e){
+    if(!dragEl) return;
+    e.preventDefault();
+    dragEl.style.left = (e.clientX - offsetX) + 'px';
+    dragEl.style.top = (e.clientY - offsetY) + 'px';
+    const dz = siloEl.getBoundingClientRect();
+    const over = e.clientX >= dz.left && e.clientX <= dz.right && e.clientY >= dz.top && e.clientY <= dz.bottom;
+    siloEl.classList.toggle('hover', over);
+  }
+
+  function onPointerUp(e){
+    if(!dragEl) return;
+    const el = dragEl;
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerUp);
+    siloEl.classList.remove('hover');
+
+    const dz = siloEl.getBoundingClientRect();
+    const over = e.clientX >= dz.left && e.clientX <= dz.right && e.clientY >= dz.top && e.clientY <= dz.bottom;
+
+    el.classList.remove('dragging');
+    dragEl = null;
+
+    if(over && !locked){
+      handleDrop(el);
+    }else{
+      // snap back to its place in the tray (it never left the DOM, just went fixed-position)
+      el.style.position = '';
+      el.style.left = '';
+      el.style.top = '';
+      el.style.width = '';
+      el.style.zIndex = '';
+    }
+  }
+
+  resetBtn.addEventListener('click', ()=> setupLevel(level));
+  playAgainBtn.addEventListener('click', resetGame);
+
+  buildLadder();
+  setupLevel(0);
+  startTimer();
+})();
+</script>
+
+</body>
+</html>
